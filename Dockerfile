@@ -78,9 +78,12 @@ RUN npm install --omit=dev && npm cache clean --force
 # Copy built openclaw
 COPY --from=openclaw-build /openclaw /openclaw
 
-# Install gbrain in runtime
+# Install gbrain in runtime. Pin to a known-good commit; override in Railway template settings if needed.
+ARG GBRAIN_GIT_REF=9e2093f
 RUN git clone https://github.com/garrytan/gbrain.git /root/gbrain \
 && cd /root/gbrain \
+&& git checkout "${GBRAIN_GIT_REF}" \
+&& chmod +x src/cli.ts \
 && bun install \
 && bun link
 
@@ -90,6 +93,9 @@ RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /openclaw/dist/entry.js "$@"'
 
 COPY src ./src
 
+# Default AGENTS.md template seeded into /data/workspace/ on first boot if absent.
+COPY templates/AGENTS.md /app/templates/AGENTS.md
+
 # Create startup script inline
 RUN mkdir -p /app/docker && cat > /app/docker/start-with-gbrain.sh <<'EOF'
 #!/usr/bin/env bash
@@ -97,9 +103,32 @@ set -e
 
 export PATH="/data/npm/bin:/data/pnpm:/root/.bun/bin:$PATH"
 
+# Seed AGENTS.md into the workspace volume on first boot (preserves user edits afterward).
+if [ -d /data/workspace ] && [ ! -f /data/workspace/AGENTS.md ] && [ -f /app/templates/AGENTS.md ]; then
+cp /app/templates/AGENTS.md /data/workspace/AGENTS.md
+fi
+
+# Clone the brain repo on first boot if the env vars are configured.
+# GBRAIN_BRAIN_REPO_URL: e.g. github.com/owner/repo (no scheme)
+# GITHUB_TOKEN: PAT with read access (private repos only)
+if [ -n "${GBRAIN_BRAIN_REPO_URL:-}" ] && [ ! -d /data/brain-repo/.git ]; then
+mkdir -p /data
+if [ -n "${GITHUB_TOKEN:-}" ]; then
+git clone "https://${GITHUB_TOKEN}@${GBRAIN_BRAIN_REPO_URL#https://}" /data/brain-repo || true
+else
+git clone "https://${GBRAIN_BRAIN_REPO_URL#https://}" /data/brain-repo || true
+fi
+fi
+
 if command -v gbrain >/dev/null 2>&1; then
 gbrain apply-migrations --yes || true
+
+# Install autopilot pinned to the brain repo if present, else DB-only maintenance.
+if [ -d /data/brain-repo/.git ]; then
+gbrain autopilot --install --repo /data/brain-repo || true
+else
 gbrain autopilot --install || true
+fi
 
 if [ -f /root/.gbrain/start-autopilot.sh ]; then
 bash /root/.gbrain/start-autopilot.sh &
