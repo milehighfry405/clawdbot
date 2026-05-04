@@ -152,6 +152,18 @@ bash /root/.gbrain/start-autopilot.sh &
 fi
 fi
 
+# Bridge OpenClaw's default workspace path ($HOME/.openclaw/workspace) to the
+# durable Railway volume. v2026.5.3-1's agent runtime can fall through to this
+# default even when OPENCLAW_WORKSPACE_DIR is set in env, which causes the
+# agent to read a fresh template workspace instead of the user's actual
+# identity/memory on /data/workspace. The symlink makes both paths resolve
+# to the same files regardless of which resolution path OpenClaw uses.
+mkdir -p /data/workspace /root/.openclaw
+if [ ! -L /root/.openclaw/workspace ]; then
+rm -rf /root/.openclaw/workspace
+ln -sfn /data/workspace /root/.openclaw/workspace
+fi
+
 exec node src/server.js
 EOF
 
