@@ -115,6 +115,14 @@ fi
 if [ ! -f /data/workspace/TOOLS.md ] && [ -f /app/templates/TOOLS.md ]; then
 cp /app/templates/TOOLS.md /data/workspace/TOOLS.md
 fi
+# Copy the gbrain skill resolver into the workspace so AGENTS.md routing
+# can fall back to the full dispatch table for skills not inlined above.
+# `gbrain skillpack install --all` does NOT copy RESOLVER.md (only individual
+# SKILL.md files), so we copy it here.
+mkdir -p /data/workspace/skills
+if [ ! -f /data/workspace/skills/RESOLVER.md ] && [ -f /root/gbrain/skills/RESOLVER.md ]; then
+cp /root/gbrain/skills/RESOLVER.md /data/workspace/skills/RESOLVER.md
+fi
 fi
 
 # Clone the brain repo on first boot if the env vars are configured.
