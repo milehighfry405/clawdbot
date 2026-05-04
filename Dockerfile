@@ -93,8 +93,11 @@ RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /openclaw/dist/entry.js "$@"'
 
 COPY src ./src
 
-# Default AGENTS.md template seeded into /data/workspace/ on first boot if absent.
+# Default AGENTS.md + TOOLS.md templates seeded into /data/workspace/ on first
+# boot if absent. AGENTS.md is the OpenClaw operating-protocol convention;
+# TOOLS.md documents gbrain + other available tools for the agent.
 COPY templates/AGENTS.md /app/templates/AGENTS.md
+COPY templates/TOOLS.md /app/templates/TOOLS.md
 
 # Create startup script inline
 RUN mkdir -p /app/docker && cat > /app/docker/start-with-gbrain.sh <<'EOF'
@@ -103,9 +106,15 @@ set -e
 
 export PATH="/data/npm/bin:/data/pnpm:/root/.bun/bin:$PATH"
 
-# Seed AGENTS.md into the workspace volume on first boot (preserves user edits afterward).
-if [ -d /data/workspace ] && [ ! -f /data/workspace/AGENTS.md ] && [ -f /app/templates/AGENTS.md ]; then
+# Seed AGENTS.md + TOOLS.md into the workspace volume on first boot. Each is
+# only copied if absent, so user edits persist across redeploys.
+if [ -d /data/workspace ]; then
+if [ ! -f /data/workspace/AGENTS.md ] && [ -f /app/templates/AGENTS.md ]; then
 cp /app/templates/AGENTS.md /data/workspace/AGENTS.md
+fi
+if [ ! -f /data/workspace/TOOLS.md ] && [ -f /app/templates/TOOLS.md ]; then
+cp /app/templates/TOOLS.md /data/workspace/TOOLS.md
+fi
 fi
 
 # Clone the brain repo on first boot if the env vars are configured.
