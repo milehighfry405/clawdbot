@@ -86,4 +86,8 @@ EXPOSE 8080
 
 # Ensure PID 1 reaps zombies and forwards signals.
 ENTRYPOINT ["tini", "--"]
-CMD ["node", "src/server.js"]
+COPY docker/start-with-gbrain.sh /app/docker/start-with-gbrain.sh
+USER root
+RUN chmod +x /app/docker/start-with-gbrain.sh
+USER node
+CMD ["bash", "/app/docker/start-with-gbrain.sh"]
