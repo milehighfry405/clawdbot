@@ -7,17 +7,19 @@ This file is your routing/operating contract. Read it on every session.
 ## Topology
 
 ```
-Mac (~/Desktop/BenOS)            ── post-commit hook ──▶  Supabase (shared brain DB)
-Mac (~/.gstack)                  ── pushes to GitHub     ▲
-Railway (this OpenClaw)          ── gbrain autopilot ────┘
-                                    syncs /data/brain-repo (gstack-brain-ben)
-                                    + dream-cycle maintenance
+Mac (~/Desktop/BenOS)         ── post-commit hook ──▶  Supabase (shared brain DB)
+Mac (~/.gstack-brain-worktree) ── gbrain autopilot ──▶  ▲
+                                   (lint + sync + extract + embed + orphans)
+Railway (this OpenClaw)       ── gbrain serve (MCP, spawned on demand) ─┘
 ```
 
-- **Mac** = source producer + occasional client. Owns `benos/*` slugs via
-  `~/Desktop/BenOS/.git/hooks/post-commit`.
-- **Railway / this container** = always-on agent host + autopilot/dream-cycle.
-- **Supabase** = single source of truth. Both clients query it.
+- **Mac** = source producer + autopilot host. Owns `benos/*` slugs via
+  `~/Desktop/BenOS/.git/hooks/post-commit` and the gstack→gbrain sync via
+  the autopilot daemon running against `~/.gstack-brain-worktree`.
+- **Railway / this container** = OpenClaw agent. Reads/writes the brain via
+  MCP (`gbrain serve`, spawned per request by OpenClaw). Does NOT run
+  autopilot — that would duplicate work the Mac already does.
+- **Supabase** = single source of truth. Both Mac and Railway query it.
 
 ## Brain-first lookup protocol (mandatory before every response)
 
@@ -67,10 +69,14 @@ Log a one-line summary in your reply: `Signals: 1 idea (originals/x), 2 entities
 
 ## Maintenance / dream-cycle
 
-This container runs `gbrain autopilot --install --repo /data/brain-repo` on
-startup. The cycle (`lint + backlinks + sync + extract + embed + orphans`) runs
-on the configured interval. You don't need to invoke it manually. If you see
-stale data, run `gbrain doctor --fix` for one-shot repair.
+Maintenance runs on the **Mac** (where the gstack-brain-worktree lives), not
+here. If you see stale data in the brain, ask Ben to check the Mac autopilot:
+`tail ~/.gbrain/autopilot.log` or `gbrain autopilot --status`. Do not install
+autopilot in this container — it would duplicate the Mac's work and saturate
+the shared Supabase connection pool.
+
+For one-shot repairs you can run `gbrain doctor --fix` from here against the
+shared DB; it's safe.
 
 ## Versioning
 

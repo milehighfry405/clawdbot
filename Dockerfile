@@ -108,31 +108,14 @@ if [ -d /data/workspace ] && [ ! -f /data/workspace/AGENTS.md ] && [ -f /app/tem
 cp /app/templates/AGENTS.md /data/workspace/AGENTS.md
 fi
 
-# Clone the brain repo on first boot if the env vars are configured.
-# GBRAIN_BRAIN_REPO_URL: e.g. github.com/owner/repo (no scheme)
-# GITHUB_TOKEN: PAT with read access (private repos only)
-if [ -n "${GBRAIN_BRAIN_REPO_URL:-}" ] && [ ! -d /data/brain-repo/.git ]; then
-mkdir -p /data
-if [ -n "${GITHUB_TOKEN:-}" ]; then
-git clone "https://${GITHUB_TOKEN}@${GBRAIN_BRAIN_REPO_URL#https://}" /data/brain-repo || true
-else
-git clone "https://${GBRAIN_BRAIN_REPO_URL#https://}" /data/brain-repo || true
-fi
-fi
-
+# Apply gbrain schema migrations against the shared DB. Idempotent on re-boot.
+# Autopilot is intentionally NOT installed here: the gstack→gbrain sync runs on
+# the Mac (where the gstack-brain-worktree lives), so running autopilot here
+# would duplicate work and double-up on the Supabase connection pool.
+# OpenClaw consumes gbrain via MCP (gbrain serve, spawned on demand), not via
+# a long-running daemon.
 if command -v gbrain >/dev/null 2>&1; then
 gbrain apply-migrations --yes || true
-
-# Install autopilot pinned to the brain repo if present, else DB-only maintenance.
-if [ -d /data/brain-repo/.git ]; then
-gbrain autopilot --install --repo /data/brain-repo || true
-else
-gbrain autopilot --install || true
-fi
-
-if [ -f /root/.gbrain/start-autopilot.sh ]; then
-bash /root/.gbrain/start-autopilot.sh &
-fi
 fi
 
 exec node src/server.js
