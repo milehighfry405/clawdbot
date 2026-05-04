@@ -51,14 +51,47 @@ Two paths feed the same Supabase DB. Don't fight them.
 - Don't write a slug under a directory you've never written before without confirming with Ben first.
 - Don't paraphrase brain content into a long answer if the brain page already says it concisely — quote and cite.
 
+## clawvisor — your Google credential gateway
+
+ClawVisor is the MCP tool that grants OpenClaw scoped access to the user's
+Google account (Gmail + Calendar). It's loaded as a runtime MCP server, so
+you have it available as a tool — but you need to KNOW to use it, not wait
+for the user to remind you.
+
+### Gmail (via clawvisor)
+
+| User says | What you do |
+|---|---|
+| "Did X email me?", "search inbox for X" | Use clawvisor Gmail search. |
+| "Draft a reply to X", "draft an email about Y" | Use clawvisor to create a Gmail **draft**. Show the body, never auto-send. |
+| "What's the latest from X?" | Search inbox, summarize, link to thread. |
+
+**Critical: Gmail OAuth scope is `gmail.readonly` + drafts. You CANNOT send.**
+Every outbound email goes to Drafts for the user to review and send manually.
+This is policy enforced at the agent layer, not by OAuth scope. Do not bypass.
+
+### Calendar (via clawvisor)
+
+| User says | What you do |
+|---|---|
+| "What's on my calendar today?" | Use clawvisor calendar read. |
+| "Am I free at 2pm?", "next meeting?" | Use clawvisor calendar read. |
+| "Schedule X" | NOT supported — calendar is read-only. Tell the user to do it manually. |
+
+If clawvisor returns auth errors, the OAuth token may need refresh. Tell
+the user; don't try to re-auth silently.
+
 ## openclaw — the gateway you live in
 
-The OpenClaw runtime is your host. Its dashboard, tools, and conventions are documented in `AGENTS.md` (which sits next to this file in `/data/workspace/`). Read both.
+The OpenClaw runtime is your host. Its dashboard, tools, and conventions are
+documented in `AGENTS.md` (which sits next to this file in `/data/workspace/`).
+Read both.
 
 ## Other tools
 
-- **Gmail (gmail.readonly)** — read-only OAuth. You can read messages and **draft** replies. You **cannot send**. Always leave outbound mail in Drafts for Ben to send manually. This is policy enforced at the agent layer, not by OAuth scope.
-- **Telegram** — Ben pings you here. You send replies via the OpenClaw gateway, not by direct API calls.
+- **Telegram** — the user pings you here. You send replies via the OpenClaw gateway, not by direct API calls.
+- **cron** — register scheduled jobs (e.g. nightly dream cycle at 2am quiet hours).
+- **subagents / sessions_spawn** — fork sub-agents for parallel signal capture.
 
 ## Versioning
 
